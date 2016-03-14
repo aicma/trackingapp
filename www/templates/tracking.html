@@ -1,0 +1,19 @@
+<ion-view view-title="{{event.name}}">
+  <ion-content>
+    <div class="row">
+      <div class="col">lat</div>
+      <div class="col col-75" id="lat"></div>
+    </div>
+    <div class="row">
+      <div class="col">long</div>
+      <div class="col col-75" id="long"></div>
+    </div>
+    <ul id="log"></ul>
+  </ion-content>
+
+  <div class="bar bar-footer">
+    <button class="button button-balanced" ng-click="startTrack()">Start</button>
+    <div class="title">Tracking</div>
+    <button class="button button-assertive"ng-click="stopTrack()">Stop</button>
+  </div>
+</ion-view>

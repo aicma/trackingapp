@@ -32,7 +32,18 @@ angular.module('user', ['ionic', 'user.controllers', 'user.services'])
       url: '/events/:eventId',
           templateUrl: 'templates/eventDetail.html',
           controller: 'EventDetailCtrl'
-    });
+    })
+    .state('landing', {
+      url: '/landing',
+      templateUrl: 'templates/landing.html',
+      controller: 'LandingCtrl'
+    })
+    .state('tracking', {
+      url: '/tracking/:eventId',
+      templateUrl: 'templates/tracking.html',
+      controller: 'TrackCtrl'
+    })
+    ;
 
-  $urlRouterProvider.otherwise('/events');
+  $urlRouterProvider.otherwise('/landing');
 });
