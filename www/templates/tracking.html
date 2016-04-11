@@ -9,11 +9,14 @@
       <div class="col col-75" id="long"></div>
     </div>
     <ul id="log"></ul>
+    <div id="mapHolder">
+
+    </div>
   </ion-content>
 
   <div class="bar bar-footer">
-    <button class="button button-balanced" ng-click="startTrack()">Start</button>
-    <div class="title">Tracking</div>
-    <button class="button button-assertive"ng-click="stopTrack()">Stop</button>
+    <button class={{buttonStyle}} ng-click="tracking()">{{buttonText}}</button>
+    <!-- <div class="title">Tracking</div>
+     <button class="button button-assertive"ng-click="tracking()" ng-disabled={{tracking}}>Stop</button> -->
   </div>
 </ion-view>

@@ -1,5 +1,27 @@
 angular.module('user.services', [])
 
+.factory('Numbers', function(){
+  var Startnummer;
+  var EventId;
+
+  return{
+    getSN: function(){
+      return Startnummer;
+    },
+    setSN: function(num){
+      Startnummer = num;
+      return Startnummer;
+    },
+    getEvent: function(){
+      return EventId;
+    },
+    setEvent: function(num){
+      EventId = num;
+      return EventId;
+    }
+  }
+})
+
 .factory('Events', function(){
   var events = [
     {
@@ -7,21 +29,21 @@ angular.module('user.services', [])
       name: "Zugspitz Ultratrail",
       date: new Date("2016-06-23"),
       img: "",
-      numberformat: /\d{4}/
+      numberformat: /^\d{4}$/
     },
     {
       id: 1,
       name: "Rad am Ring",
       date: new Date("2016-07-23"),
       img: "",
-      numberformat: /[A-B]{1}\s*\d{1,4}/i
+      numberformat: /^[A-B]{1}\s*\d{1,4}$/i
     },
     {
       id: 2,
       name: "TestEvent",
       date: new Date("2016-02-23"),
       img: "",
-      numberformat: /\d{1,4}\s*[A-B]/i
+      numberformat: /^\d{1,4}\s*[A-B]$/i
     }
   ];
 
@@ -40,7 +62,7 @@ angular.module('user.services', [])
   };
 })//TODO:  Serverabfrage
 
-.factory('Riders', function(){
+/*.factory('Riders', function(){
   var riders = [
     {
       id:0,
@@ -76,9 +98,9 @@ angular.module('user.services', [])
     }
   }
 
-})  //TESTDATA //TODO: Serverabfrage
+})  //TESTDATA //TODO: Serverabfrage */
 
-.factory('FollowedRiders', function(Riders){
+/*.factory('FollowedRiders', function(Riders){
   var followedRiders = [];      //TODO: Server verbindung
 
   return {
@@ -94,13 +116,13 @@ angular.module('user.services', [])
       return null;
     }
   }
-})
+})*/
 
 .factory('Cameras', function(){
   var cams =[
     {
-      lat: 23.3576,
-      long: 47.1345
+      lat: 48.356386,
+      long: 10.8965747
     },
     {
       lat: 23.6578,
@@ -116,7 +138,7 @@ angular.module('user.services', [])
 
 })
 
-.factory('FileHandler', function(GPXCreator){
+.factory('FileHandler', function(GPXCreator, Numbers){
 
   var errorHandler = function (fileName, e) {
     var msg = '';
@@ -159,7 +181,7 @@ angular.module('user.services', [])
         var trkString = GPXCreator.createHeader(GPXCreator.createUTCtimestamp(new Date()));
 
         for(var i=0;i<data.length;i++){
-          if(i==0){trkString+= '<trk> \n <name>  </name> \n <trkseg>\n'} //GET EVENT NAME HERE?
+          if(i==0){trkString+= '<trk> \n <name>' + Numbers.getSN() + 'at Event#' + Numbers.getEvent() + '</name> \n <trkseg>\n'} //GET EVENT NAME HERE?
           if(data[i][0] == 999){
             trkString += '</trkseg> \n <trkseg>\n';
           }else {
@@ -173,12 +195,11 @@ angular.module('user.services', [])
             fileEntry.createWriter(function (fileWriter) {
               //CALLBACKS
               fileWriter.onwriteend = function (e) {
-                // for real-world usage, you might consider passing a success callback
+
                 console.log('Write of file "' + fileName + '"" completed.'+ e);
                 resolve();
               };
               fileWriter.onerror = function (e) {
-                // you could hook this up with our global error handler, or pass in an error callback
                 console.log('Write failed: ' + e.toString());
                 reject();
               };
@@ -190,12 +211,15 @@ angular.module('user.services', [])
           }, errorHandler.bind(null, fileName));
         }, errorHandler.bind(null, fileName));
       })
+    },
+    readDirectory: function(pathToDir){
+      window.resolveLocalFileSystemURL(pathToDir)
     }
   }
 })
 
-.factory('Tracker', function(Cameras, PopupService){
-  var watchId = null;
+.factory('Tracker', function(Cameras, PopupService, Numbers){
+  var watch = null;
   var trackArray = [];
 
   /**
@@ -205,16 +229,21 @@ angular.module('user.services', [])
      */
   function compareToCams(position){
     var cams = Cameras.all();
-    var deltaDistance = 50 * 90/10000000; // 10 Meter in Dezimalgrad
+    var deltaDistance = 10 * 90/10000000; // 10 Meter in Dezimalgrad
 
+    // x1-x2 y1-y2 < delta
     for(i = 0; i< cams.length; i++){
-      var bool1 = Math.abs(position.coords.longitude) >= Math.abs(cams[i].long) - deltaDistance; // left of cam
-      var bool2 = Math.abs(position.coords.longitude) <= Math.abs(cams[i].long) + deltaDistance; // right of cam
-      var bool3 = Math.abs(position.coords.latitude) >= Math.abs(cams[i].lat) - deltaDistance; // below cam
-      var bool4 = Math.abs(position.coords.latitude) <= Math.abs(cams[i].lat) + deltaDistance; // above cam
+      var bool1 = Math.abs(Math.abs(position.coords.longitude) - Math.abs(cams[i].long)) < deltaDistance;
+      var bool2 = Math.abs(Math.abs(position.coords.latitude) - Math.abs(cams[i].lat)) < deltaDistance;
+      //var bool1 = Math.abs(position.coords.longitude) >= Math.abs(cams[i].long) - deltaDistance; // left of cam
+      //var bool2 = Math.abs(position.coords.longitude) <= Math.abs(cams[i].long) + deltaDistance; // right of cam
+      //var bool3 = Math.abs(position.coords.latitude) >= Math.abs(cams[i].lat) - deltaDistance; // below cam
+      //var bool4 = Math.abs(position.coords.latitude) <= Math.abs(cams[i].lat) + deltaDistance; // above cam
 
-      if(bool1 && bool2 && bool3 && bool4) {
+      if(bool1 && bool2) {
         console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
+        PopupService.alert('close to cam!');
+
       }
     }
   }
@@ -224,6 +253,8 @@ angular.module('user.services', [])
     var lat = position.coords.latitude;
     var lon = position.coords.longitude;
     var alt = position.coords.altitude;
+    var acc = position.coords.accuracy;
+
     if(!alt){
       alt = 0;
     }
@@ -233,26 +264,28 @@ angular.module('user.services', [])
     latElement.innerHTML = position.coords.latitude;
     longElement.innerHTML = position.coords.longitude;
 
-    trackArray.push([lat, lon, alt, position.timestamp]);
+    trackArray.push([lat, lon, alt, position.timestamp, acc]);
 
     compareToCams(position);
   }
 
   function onTrackError(error){
-    trackArray.push([999,999, 999, 999]); //Mark lost connection in the Array
+    trackArray.push([999, error.code]); //Mark lost connection in the Array
     console.log(error.code +'\n'+ error.message);
     switch(error.code) {
-      case 1:
+      case error.PERMISSION_DENIED:
             PopupService.alert('GPS Zugriff nicht möglich. Vermutlich hat die App keine Zugriffsrechte');
             break;
-      case 2:
+      case error.POSITION_UNAVAILABLE:
             PopupService.alert('GPS Position nicht verfügbar. Vermutlich keine Satelliten- oder Netzverbindung');
             break;
-      case 3:
+      case error.TIMEOUT:
             PopupService.alert('Timeout');
             break;
     }
   }
+
+
 
   return {
     startTracking : function() {
@@ -263,15 +296,16 @@ angular.module('user.services', [])
           text:   'touch to return to App'
         });
         cordova.plugins.backgroundMode.enable();
-        watchId = navigator.geolocation.watchPosition(onTrackSuccess,
-          onTrackError,
-          {timeout: 5000, enableHighAccuracy: true, maximumAge: 3000});
+        watch = navigator.geolocation.watchPosition(onTrackSuccess, onTrackError,
+          {timeout: 10000, enableHighAccuracy: true, maximumAge: 3000});
+        console.log('watchID: ' + watch);
       })
     },
     stopTracking : function() {
       ionic.Platform.ready(function(){
         cordova.plugins.backgroundMode.disable();
-        navigator.geolocation.clearWatch(watchId);
+        navigator.geolocation.clearWatch(watch);
+        clearInterval(watch); // TIMEDTRACKING
         console.log(trackArray);
       })
     },
@@ -282,7 +316,7 @@ angular.module('user.services', [])
 
 })
 
-.factory('PopupService',function($ionicPopup) {
+.factory('PopupService',function($ionicPopup, $ionicActionSheet) {
 
   return{
     alert: function(message){
@@ -292,6 +326,29 @@ angular.module('user.services', [])
         template: message
       });
       return alertPopup; //returns Promise
+    },
+    choice: function(){
+      var choiceSheet;
+      choiceSheet = $ionicActionSheet.show({
+        titleText: '',
+        buttons: [
+          {text: 'Upload to Strava'},
+          {text: 'Upload to Sportograf'},
+        ],
+        destructiveText: '<b>Dont Save</b>',
+        cancelText: 'Cancel',
+        cancel: function(){},
+        buttonClicked: function(index){
+          switch (index){
+            case 0:
+                  console.log('He wants to Upload to Strava');//UploadFileto to Strava
+                  break;
+            case 1:
+                  console.log('He wants to Upload to Sportograf');//UploadFileTo Sportograf
+                  break;
+          }
+        }
+      })
     }
   }
 })
@@ -321,18 +378,22 @@ angular.module('user.services', [])
       return finalStr;
     },
     createHeader: function(UTCtimestamp){
-      var er;
-      er = '<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n ' +
+      var it;
+      it = '<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n ' +
         '\n' +
         '<gpx creator=\"SportografApp\" version=\"1.1\" \n' +
+        'xmlns=\"http://www.topografix.com/GPX/1/1\" \n' +
+        'xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \n' +
+        'xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 \n' +
+        'http://www.topografix.com/GPX/1/1/gpx.xsd\"> \n' +
         '  <metadata> \n' +
-        '    <link href=\"http://www.sportograf.com.com\"> \n' +
+        '    <link href=\"http://www.sportograf.com\"> \n' +
         '    <text>Sportograf</text>\n' +
         '    </link>\n' +
         '    <time>' + UTCtimestamp + '</time>\n' +
         '  </metadata>\n';
 
-      return er;
+      return it;
     }
   }
 });

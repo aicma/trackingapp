@@ -14,7 +14,7 @@ angular.module('user.controllers', ['user.services', 'ngCordova'])
   }
 })
 
-.controller('LandingCtrl', function($scope,$ionicPopup, Events, PopupService){
+.controller('LandingCtrl', function($scope,$ionicPopup, Events, Numbers, PopupService){
   $scope.events = Events.all();
 
   $scope.submitData = function (){
@@ -23,8 +23,10 @@ angular.module('user.controllers', ['user.services', 'ngCordova'])
     var tempEvent = Events.get(tempId);
     var sNumber = document.getElementById('numberfield').value; //Startnummer
 
-    if(sNumber.match(tempEvent.numberformat).length == 1){   //wenn die eingegebene Zahl dem zum event gehörigem Zahlenformat entspricht, tue folgendes
-      console.log("Alles passt, kann weiter gehen");
+    if(tempEvent.numberformat.test(sNumber)){   //wenn die eingegebene Zahl dem zum event gehörigem Zahlenformat entspricht, tue folgendes
+      console.log("Numbercheck successful");
+      Numbers.setSN(sNumber);
+      Numbers.setEvent(tempId);
       window.location.href = '#/tracking/' + tempId;
     }else{
       PopupService.alert('Das eingegebene Zahlenformat passt nicht! Bitte kontrolliere deine Eingabe');
@@ -32,24 +34,31 @@ angular.module('user.controllers', ['user.services', 'ngCordova'])
   }
 })
 
-.controller('TrackCtrl', function($scope, $stateParams, Events, Tracker, FileHandler, PopupService){
+.controller('TrackCtrl', function($scope, $stateParams, Events, Tracker, FileHandler, Numbers, PopupService){
+
   $scope.event = Events.get($stateParams.eventId);
+  $scope.buttonStyle = "button button-block button-balanced";
+  $scope.buttonText = "Start Tracking";
 
+  var tracking = false;
 
-  $scope.startTrack = function(){
-    console.log('start tracking');
-    Tracker.startTracking();
+  $scope.tracking = function(){
+    if(tracking){
+      $scope.buttonStyle = "button button-block button-balanced";
+      $scope.buttonText = "Start Tracking";
+      console.log('stop tracking');
+      tracking = false;
+      FileHandler.writeGPXFile(Numbers.getEvent(), Tracker.getArray()).then(PopupService.choice());
+      Tracker.stopTracking();
 
-  };
+    }else{
+      $scope.buttonStyle = "button button-block button-assertive";
+      $scope.buttonText = "Stop Tracking";
+      console.log('start tracking');
+      Tracker.startTracking();
+      tracking = true;
+    }
+  }
 
-  $scope.stopTrack = function(){
-    console.log('stop tracking');
-    FileHandler.writeGPXFile('testfile.txt', Tracker.getArray());
-    Tracker.stopTracking();
-
-  };
-
-
-
-})
+});
 
