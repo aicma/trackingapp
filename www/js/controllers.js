@@ -15,7 +15,7 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
 
 })
 
-.controller('LandingCtrl', function($scope,$ionicPopup, $http, Events, Numbers, PopupService){
+.controller('LandingCtrl', function($scope, $http , $cordovaOauth, Events, Numbers, PopupService){
   $scope.events = Events.all();
 
   $scope.submitData = function (){
@@ -37,7 +37,7 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
     window.location.href = '#/files';
   };
   $scope.connectStrava = function(){
-    //$cordovaOauth.strava('11064','', [write]);
+    $cordovaOauth.strava('11064','f6b88ba4d30cee175563fa50b96a9b418951f670', ['write']);
   }
 })
 
