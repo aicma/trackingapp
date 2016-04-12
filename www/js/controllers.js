@@ -1,20 +1,21 @@
-angular.module('user.controllers', ['user.services', 'ngCordova'])
+angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCordovaOauth'])
 
 .controller('EventCtrl', function($scope, Events){
   $scope.events = Events.all();
 })
 
-.controller('EventDetailCtrl', function($scope, $stateParams, Events, Riders, FollowedRiders) {
-  $scope.event = Events.get($stateParams.eventId);
-  $scope.riders = Riders.all();
+.controller('FileCtrl', function($scope, FileHandler) {
 
-  $scope.followClick = function(){
-    FollowedRiders.add(Riders.getNumber(document.getElementById('Startnummer').value));
-    document.getElementById('Startnummer').value = "";
-  }
+  FileHandler.readDirectory(cordova.file.dataDirectory).then(function(result){
+    if(result){$scope.files = result;}
+    else{$scope.files = [];}
+  },function(err){
+    console.log(err.code);
+  });
+
 })
 
-.controller('LandingCtrl', function($scope,$ionicPopup, Events, Numbers, PopupService){
+.controller('LandingCtrl', function($scope,$ionicPopup, $http, Events, Numbers, PopupService){
   $scope.events = Events.all();
 
   $scope.submitData = function (){
@@ -31,6 +32,12 @@ angular.module('user.controllers', ['user.services', 'ngCordova'])
     }else{
       PopupService.alert('Das eingegebene Zahlenformat passt nicht! Bitte kontrolliere deine Eingabe');
     }
+  };
+  $scope.goToFiles = function(){
+    window.location.href = '#/files';
+  };
+  $scope.connectStrava = function(){
+    //$cordovaOauth.strava('11064','', [write]);
   }
 })
 
@@ -47,9 +54,9 @@ angular.module('user.controllers', ['user.services', 'ngCordova'])
       $scope.buttonStyle = "button button-block button-balanced";
       $scope.buttonText = "Start Tracking";
       console.log('stop tracking');
-      tracking = false;
-      FileHandler.writeGPXFile(Numbers.getEvent(), Tracker.getArray()).then(PopupService.choice());
       Tracker.stopTracking();
+      tracking = false;
+      FileHandler.writeGPXFile(Numbers.getEvent()+ "\.gpx", Tracker.getArray()).then(PopupService.choice());
 
     }else{
       $scope.buttonStyle = "button button-block button-assertive";

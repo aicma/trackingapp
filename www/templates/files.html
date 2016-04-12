@@ -1,0 +1,15 @@
+<ion-view view-title="saved Tracks">
+  <ion-content>
+    <ion-list show-delete=false
+              show-reorder=false
+              can-swipe=true >
+      <ion-item class="item-remove-animate item-avatar item-icon-right"
+                ng-repeat="file in files"
+                ng-show="!file.isDirectory"
+                type="item-text-wrap">
+                {{file.name}}
+
+      </ion-item>
+    </ion-list>
+  </ion-content>
+</ion-view>

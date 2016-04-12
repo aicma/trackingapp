@@ -138,7 +138,7 @@ angular.module('user.services', [])
 
 })
 
-.factory('FileHandler', function(GPXCreator, Numbers){
+.factory('FileHandler', function($q, GPXCreator, Numbers){
 
   var errorHandler = function (fileName, e) {
     var msg = '';
@@ -190,13 +190,13 @@ angular.module('user.services', [])
           if(i==data.length-1){trkString += '</trkseg> \n </trk> \n </gpx>';}
         }
 
-        window.resolveLocalFileSystemURL(cordova.file.dataDirectory, function (directoryEntry) {
+        window.resolveLocalFileSystemURL(cordova.file.dataDirectory +"/save", function (directoryEntry) {
           directoryEntry.getFile(fileName, {create: true}, function (fileEntry) {
             fileEntry.createWriter(function (fileWriter) {
               //CALLBACKS
               fileWriter.onwriteend = function (e) {
 
-                console.log('Write of file "' + fileName + '"" completed.'+ e);
+                console.log('Write of file "' + fileName + '" completed.'+ e);
                 resolve();
               };
               fileWriter.onerror = function (e) {
@@ -213,7 +213,22 @@ angular.module('user.services', [])
       })
     },
     readDirectory: function(pathToDir){
-      window.resolveLocalFileSystemURL(pathToDir)
+     console.log('reading directory...');
+      return new Promise(function(resolve, reject){
+          ionic.Platform.ready(function () {
+            window.resolveLocalFileSystemURL(pathToDir, function (fileSystem) {
+            var directoryReader = fileSystem.createReader();
+            directoryReader.readEntries(function (entries) {
+
+              resolve(entries);
+            }, function(error) {
+              reject(error);
+            });
+            }, function (error) {
+            reject(error);
+            });
+          })
+      })
     }
   }
 })
@@ -327,28 +342,53 @@ angular.module('user.services', [])
       });
       return alertPopup; //returns Promise
     },
-    choice: function(){
+    choice: function(){ //FUNKTIONIERT FAST
       var choiceSheet;
       choiceSheet = $ionicActionSheet.show({
-        titleText: '',
+        titleText: 'GPX File',
         buttons: [
           {text: 'Upload to Strava'},
           {text: 'Upload to Sportograf'},
         ],
+        cancelText: 'Show in Browser',
         destructiveText: '<b>Dont Save</b>',
-        cancelText: 'Cancel',
-        cancel: function(){},
+        cancel: function(){
+          console.log('canceled');
+          window.location.href = '#/files';
+        },
         buttonClicked: function(index){
           switch (index){
             case 0:
                   console.log('He wants to Upload to Strava');//UploadFileto to Strava
+                  return true;
                   break;
             case 1:
                   console.log('He wants to Upload to Sportograf');//UploadFileTo Sportograf
+                  return true;
                   break;
           }
         }
-      })
+      });
+      return choiceSheet;
+    },
+    customPop: function(){ //NOT FUNCTIONAL
+      var myPopup = $ionicPopup.show({
+        template: '',
+        title: 'What now?',
+        subTitle: 'select what to do with your Track',
+        scope: $scope,
+        buttons: [
+          { text: 'Cancel' },
+          {
+            text: '<b>Save</b>',
+            type: 'button-positive',
+            onTap: function() {
+
+            }
+          }
+        ]
+      });
+      return myPopup;
     }
   }
 })
