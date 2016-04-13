@@ -1,5 +1,5 @@
 
-angular.module('user', ['ionic', 'user.controllers', 'user.services', 'ngCordovaOauth'])
+angular.module('user', ['ionic', 'user.controllers', 'user.services'])
 
 .run(function($ionicPlatform) {
   $ionicPlatform.ready(function() {

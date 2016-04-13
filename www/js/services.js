@@ -190,7 +190,7 @@ angular.module('user.services', [])
           if(i==data.length-1){trkString += '</trkseg> \n </trk> \n </gpx>';}
         }
 
-        window.resolveLocalFileSystemURL(cordova.file.dataDirectory +"/save", function (directoryEntry) {
+        window.resolveLocalFileSystemURL(cordova.file.dataDirectory, function (directoryEntry) {
           directoryEntry.getFile(fileName, {create: true}, function (fileEntry) {
             fileEntry.createWriter(function (fileWriter) {
               //CALLBACKS
@@ -237,6 +237,9 @@ angular.module('user.services', [])
   var watch = null;
   var trackArray = [];
 
+  var map, currentPositionMarker;
+  var mapCenter = new google.maps.LatLng(48.3584,10.9062); //Default map Position (HS AUGSBURG)
+
   /**
    * Takes a Posistion Object and compares the position to the Positions from the "Cameras"-Factory
    * If true it does something
@@ -258,21 +261,48 @@ angular.module('user.services', [])
       if(bool1 && bool2) {
         console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
         PopupService.alert('close to cam!');
+        //PSEUDOCODE HTTP.POST(Numbers.Startnummer, cams[i].id, position.timestamp)
 
       }
     }
   }
 
-  function onTrackSuccess(position){
+  /**
+   * Initializes the Map Element
+   * @param
+   */
+  function initMap()
+  {
+    map = new google.maps.Map(document.getElementById('mapHolder'), {
+      zoom: 18,
+      center: mapCenter,
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    });
+    currentPositionMarker = new google.maps.Marker({
+      map: map,
+      position: mapCenter,
+      title: "Current Position"
+    });
+    currentPositionMarker.setVisible(false);
+  }
 
+  // current position of the user
+  function setCurrentMapPosition(pos) {
+
+    map.panTo(new google.maps.LatLng(
+      pos.coords.latitude,
+      pos.coords.longitude
+    ));
+  }
+
+  function onTrackSuccess(position){
     var lat = position.coords.latitude;
     var lon = position.coords.longitude;
     var alt = position.coords.altitude;
     var acc = position.coords.accuracy;
-
-    if(!alt){
-      alt = 0;
-    }
+    setCurrentMapPosition(position);
+    currentPositionMarker.setPosition(new google.maps.LatLng(position.coords.latitude, position.coords.longitude));
+    currentPositionMarker.setVisible(true);
 
     var latElement = document.getElementById('lat');
     var longElement = document.getElementById('long');
@@ -306,14 +336,14 @@ angular.module('user.services', [])
     startTracking : function() {
       ionic.Platform.ready(function () {
         cordova.plugins.backgroundMode.setDefaults({
-          title:  'GPS logging active',
+          title: 'GPS logging active',
           ticker: 'tickertext',
-          text:   'touch to return to App'
+          text: 'touch to return to App'
         });
         cordova.plugins.backgroundMode.enable();
         watch = navigator.geolocation.watchPosition(onTrackSuccess, onTrackError,
           {timeout: 10000, enableHighAccuracy: true, maximumAge: 3000});
-        console.log('watchID: ' + watch);
+
       })
     },
     stopTracking : function() {
@@ -326,9 +356,24 @@ angular.module('user.services', [])
     },
     getArray: function(){
       return trackArray;
+    },
+    getCurrentPos: function(){
+      return currentPos;
+      /*
+      if(currentPos){return currentPos}else {
+        ionic.Platform.ready(function () {
+          navigator.geolocation.getCurrentPosition(function (position) {
+            return position;
+          }, function (error) {
+            console.log(error);
+          }, {timeout: 5000, enableHighAccuracy: true, maximumAge: 3000})
+        })
+      }*/
+    },
+    initializeMap: function() {
+      return initMap;
     }
   }
-
 })
 
 .factory('PopupService',function($ionicPopup, $ionicActionSheet) {
@@ -410,10 +455,13 @@ angular.module('user.services', [])
     createTrkPt: function(arrayPoint){
       var dateStringUTC = this.createUTCtimestamp(arrayPoint[3]);
       var finalStr;
-      finalStr = '<trkpt lat=\"' + arrayPoint[0] + '\" lon=\"' + arrayPoint[1] + '\"> \n ' +
-        '  <ele>' + arrayPoint[2] + '</ele> \n' +
-        '  <time>' + dateStringUTC + '</time> \n' +
-        '</trkpt>\n';
+      finalStr = '<trkpt lat=\"' + arrayPoint[0] + '\" lon=\"' + arrayPoint[1] + '\"> \n ';
+      if(arrayPoint[2]){
+        finalStr += '  <ele>' + arrayPoint[2] + '</ele> \n';
+      }
+      finalStr += '  <time>' + dateStringUTC + '</time> \n' +
+                  '  <cmt> accuracy'+ arrayPoint[4] +'</cmt> \n' +
+                  '</trkpt>\n';
 
       return finalStr;
     },

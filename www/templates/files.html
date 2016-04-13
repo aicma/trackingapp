@@ -1,14 +1,16 @@
 <ion-view view-title="saved Tracks">
   <ion-content>
-    <ion-list show-delete=false
-              show-reorder=false
-              can-swipe=true >
-      <ion-item class="item-remove-animate item-avatar item-icon-right"
+    <ion-list can-swipe="true" >
+      <ion-item class="item-remove-animate item-icon-right"
                 ng-repeat="file in files"
                 ng-show="!file.isDirectory"
                 type="item-text-wrap">
                 {{file.name}}
-
+        <ion-option-button class="button-positive"
+                           ng-click="">
+          Share
+        </ion-option-button>
+        <i class="icon ion-android-cloud" ng-click=""></i>
       </ion-item>
     </ion-list>
   </ion-content>

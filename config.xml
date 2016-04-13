@@ -20,6 +20,8 @@
   <allow-navigation href="data:*" />
   <allow-navigation href="*://*.sportograf.com/*"/>
   <allow-navigation href="*://*.strava.com/*"/>
+  <allow-navigation href="http://localhost/*"/>
+  <allow-navigation href="https://*.maps.*"/>
   <feature name="StatusBar">
     <param name="ios-package" value="CDVStatusBar" onload="true"/>
   </feature>
