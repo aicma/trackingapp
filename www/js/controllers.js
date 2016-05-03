@@ -5,7 +5,10 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
 })
 
 .controller('FileCtrl', function($scope, FileHandler) {
-  $scope.cloudState
+  $scope.cloudState = "icon ion-android-cloud";
+
+  $scope.upload = function(file){
+  };
 
   FileHandler.readDirectory(cordova.file.dataDirectory).then(function(result){
     if(result){$scope.files = result;}
@@ -27,7 +30,7 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
 
     if(tempEvent.numberformat.test(sNumber)){   //wenn die eingegebene Zahl dem zum event gehörigem Zahlenformat entspricht, tue folgendes
       console.log("Numbercheck successful");
-      console.log("a"+tempId + "o");
+      console.log(tempId);
       Numbers.setSN(sNumber);
       Numbers.setEvent(tempId);
       window.location.href = '#/tracking/' + tempId;
@@ -62,7 +65,7 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
       //console.log('stop tracking');
       Tracker.stopTracking();
       tracking = false;
-      FileHandler.writeGPXFile(Numbers.getEvent() + ".gpx", Tracker.getArray());
+      FileHandler.writeGPXFile(Numbers.getSN() +"at"+Numbers.getEvent() + ".gpx", Tracker.getArray());
 
     }else if(navigator.geolocation){
       $scope.buttonStyle = "button button-assertive";

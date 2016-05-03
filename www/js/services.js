@@ -118,21 +118,29 @@ angular.module('user.services', [])
   }
 })*/
 
-.factory('Cameras', function(){
-  var cams =[
+.factory('Cameras', function($http){
+  /*var cams =[
     {
-      lat: 48.356386,
-      long: 10.8965747
+      lat: 48.3582,
+      long: 10.9067
     },
     {
       lat: 23.6578,
       long: 47.3267
     }
-  ]; // TESTDATA TODO: Serverabfrage
-
+  ]; */// TESTDATA TODO: Serverabfrage
   return {
     all: function(){
-      return cams;
+      $http({
+        method: 'GET',
+        url: 'https://testserver-ontrack.herokuapp.com/'
+      }).then(function(response){
+          console.log(response.data);
+          return response.data;
+        },
+        function(error){console.log(error)}
+      );
+      return;
     }
   }
 
@@ -233,7 +241,7 @@ angular.module('user.services', [])
   }
 })
 
-.factory('Tracker', function(Cameras, PopupService, Numbers){
+.factory('Tracker', function($http, Cameras, PopupService, Numbers){
   var watch = null;
   var trackArray = [];
 
@@ -260,7 +268,18 @@ angular.module('user.services', [])
 
       if(bool1 && bool2) {
         console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
-        PopupService.alert('close to cam!');
+        var req = {
+          method: 'POST',
+          url: 'https://testserver-ontrack.herokuapp.com/change',
+          data: {
+            rider: Numbers.getSN() ,
+            event: Numbers.getEvent() ,
+            camera: i
+            }
+        };
+
+        $http(req).then(function(success){console.log('post success');}, function(error){console.log(error);})
+        //PopupService.alert('close to cam!');
         //PSEUDOCODE HTTP.POST(Numbers.Startnummer, cams[i].id, position.timestamp)
 
       }
