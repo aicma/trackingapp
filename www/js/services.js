@@ -122,7 +122,6 @@ angular.module('user.services', [])
   var cams;
 
   function initcams(){
-    console.log('function called, so thats not the porblem');
     $http({
       method: 'GET',
       url: 'https://testserver-ontrack.herokuapp.com/' //TODO: eventspezifisch incl datenbank
@@ -142,7 +141,6 @@ angular.module('user.services', [])
       }
     },
     init: function(){
-      console.log('called the init');
       initcams();
       return null;
     }
@@ -259,27 +257,27 @@ angular.module('user.services', [])
      */
   function compareToCams(position){
     var cams = Cameras.all();
-    console.log(cams);
-    var deltaDistance = 10 * 90/10000000; // 10 Meter in Dezimalgrad
+    var deltaDistance = 100 * 90/10000000; // 10 Meter in Dezimalgrad
 
     // x1-x2 y1-y2 < delta
     for(var cam in cams){
       var bool1 = Math.abs(Math.abs(position.coords.longitude) - Math.abs(cams[cam].long)) < deltaDistance;
       var bool2 = Math.abs(Math.abs(position.coords.latitude) - Math.abs(cams[cam].lat)) < deltaDistance;
-
+      console.log(cam +" : " + bool1 +"&"+ bool2);
       if(bool1 && bool2) {
         console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
-        var req = {
-          method: 'POST',
-          url: 'https://testserver-ontrack.herokuapp.com/change',
-          data: {
+        var config = {headers: {
+            "content-type": "application/json",
+            "cache-control": "no-cache"}
+        };
+        var data = {
             rider: Numbers.getSN() ,
             event: Numbers.getEvent() ,
-            camera: i
-            }
-        };
-
-        $http(req).then(function(success){console.log('post success');}, function(error){console.log(error);})
+            camera: cam,
+            time: position.timestamp
+            };
+        console.log(data);
+        $http.post('https://testserver-ontrack.herokuapp.com/', data, config).then(function(success){console.log('post success');}, function(error){console.log(error);})
         //PopupService.alert('close to cam!');
         //PSEUDOCODE HTTP.POST(Numbers.Startnummer, cams[i].id, position.timestamp)
 

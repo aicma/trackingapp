@@ -43,7 +43,7 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
   };
   $scope.connectStrava = function(){
     $cordovaOauth.strava('11064','4fcd0f8ab6306d68ee7d78af9b18b29e4180512d', ['write']).then(function(result){
-      console.log("ReturnObjekt" +JSON.stringify(result));
+      console.log("ReturnObjekt " +JSON.stringify(result));
     },function(error){
       console.error(error);
     });
@@ -78,7 +78,6 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
     }
   };
   ionic.Platform.ready(function(){
-    console.log('DEVICE READY!');
     Cameras.init();
     Tracker.initializeMap();
   });
