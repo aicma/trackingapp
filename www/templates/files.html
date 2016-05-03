@@ -1,0 +1,18 @@
+<ion-view view-title="saved Tracks">
+  <ion-content>
+    <ion-list can-swipe="true" >
+      <ion-item class="item-remove-animate item-icon-right"
+                ng-repeat="file in files"
+                ng-show="!file.isDirectory"
+                type="item-text-wrap"
+                >
+                {{file.name}}
+        <ion-option-button class="button-positive"
+                           ng-click="">
+          Share
+        </ion-option-button>
+        <i class={{cloudState}} ng-click="upload(file)"></i>
+      </ion-item>
+    </ion-list>
+  </ion-content>
+</ion-view>

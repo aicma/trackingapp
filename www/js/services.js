@@ -1,5 +1,27 @@
 angular.module('user.services', [])
 
+.factory('Numbers', function(){
+  var Startnummer;
+  var EventId;
+
+  return{
+    getSN: function(){
+      return Startnummer;
+    },
+    setSN: function(num){
+      Startnummer = num;
+      return Startnummer;
+    },
+    getEvent: function(){
+      return EventId;
+    },
+    setEvent: function(num){
+      EventId = num;
+      return EventId;
+    }
+  }
+})
+
 .factory('Events', function(){
   var events = [
     {
@@ -7,21 +29,21 @@ angular.module('user.services', [])
       name: "Zugspitz Ultratrail",
       date: new Date("2016-06-23"),
       img: "",
-      numberformat: /\d{4}/
+      numberformat: /^\d{4}$/
     },
     {
       id: 1,
       name: "Rad am Ring",
       date: new Date("2016-07-23"),
       img: "",
-      numberformat: /[A-B]{1}\s*\d{1,4}/i
+      numberformat: /^[A-B]{1}\s*\d{1,4}$/i
     },
     {
       id: 2,
       name: "TestEvent",
       date: new Date("2016-02-23"),
       img: "",
-      numberformat: /\d{1,4}\s*[A-B]/i
+      numberformat: /^\d{1,4}\s*[A-B]$/i
     }
   ];
 
@@ -40,7 +62,7 @@ angular.module('user.services', [])
   };
 })//TODO:  Serverabfrage
 
-.factory('Riders', function(){
+/*.factory('Riders', function(){
   var riders = [
     {
       id:0,
@@ -76,9 +98,9 @@ angular.module('user.services', [])
     }
   }
 
-})  //TESTDATA //TODO: Serverabfrage
+})  //TESTDATA //TODO: Serverabfrage */
 
-.factory('FollowedRiders', function(Riders){
+/*.factory('FollowedRiders', function(Riders){
   var followedRiders = [];      //TODO: Server verbindung
 
   return {
@@ -94,29 +116,39 @@ angular.module('user.services', [])
       return null;
     }
   }
-})
+})*/
 
-.factory('Cameras', function(){
-  var cams =[
-    {
-      lat: 23.3576,
-      long: 47.1345
-    },
-    {
-      lat: 23.6578,
-      long: 47.3267
-    }
-  ]; // TESTDATA TODO: Serverabfrage
+.factory('Cameras', function($http){
+  var cams;
 
+  function initcams(){
+    $http({
+      method: 'GET',
+      url: 'https://testserver-ontrack.herokuapp.com/' //TODO: eventspezifisch incl datenbank
+    }).then(function(response){
+        cams = response.data;
+        console.log(cams);
+      },
+      function(error){console.log(error)}
+    );
+  }
   return {
     all: function(){
-      return cams;
+      if(cams) {
+        return cams;
+      }else{
+        console.error('no cams found');
+      }
+    },
+    init: function(){
+      initcams();
+      return null;
     }
   }
 
 })
 
-.factory('FileHandler', function(GPXCreator){
+.factory('FileHandler', function($q, GPXCreator, Numbers){
 
   var errorHandler = function (fileName, e) {
     var msg = '';
@@ -159,7 +191,7 @@ angular.module('user.services', [])
         var trkString = GPXCreator.createHeader(GPXCreator.createUTCtimestamp(new Date()));
 
         for(var i=0;i<data.length;i++){
-          if(i==0){trkString+= '<trk> \n <name>  </name> \n <trkseg>\n'} //GET EVENT NAME HERE?
+          if(i==0){trkString+= '<trk> \n <name>' + Numbers.getSN() + 'at Event#' + Numbers.getEvent() + '</name> \n <trkseg>\n'} //GET EVENT NAME HERE?
           if(data[i][0] == 999){
             trkString += '</trkseg> \n <trkseg>\n';
           }else {
@@ -173,12 +205,11 @@ angular.module('user.services', [])
             fileEntry.createWriter(function (fileWriter) {
               //CALLBACKS
               fileWriter.onwriteend = function (e) {
-                // for real-world usage, you might consider passing a success callback
-                console.log('Write of file "' + fileName + '"" completed.'+ e);
+
+                console.log('Write of file "' + fileName + '" completed.');
                 resolve();
               };
               fileWriter.onerror = function (e) {
-                // you could hook this up with our global error handler, or pass in an error callback
                 console.log('Write failed: ' + e.toString());
                 reject();
               };
@@ -190,13 +221,34 @@ angular.module('user.services', [])
           }, errorHandler.bind(null, fileName));
         }, errorHandler.bind(null, fileName));
       })
+    },
+    readDirectory: function(pathToDir){
+     console.log('reading directory...');
+      return new Promise(function(resolve, reject){
+          ionic.Platform.ready(function () {
+            window.resolveLocalFileSystemURL(pathToDir, function (fileSystem) {
+            var directoryReader = fileSystem.createReader();
+            directoryReader.readEntries(function (entries) {
+
+              resolve(entries);
+            }, function(error) {
+              reject(error);
+            });
+            }, function (error) {
+            reject(error);
+            });
+          })
+      })
     }
   }
 })
 
-.factory('Tracker', function(Cameras, PopupService){
-  var watchId = null;
+.factory('Tracker', function($http, Cameras, PopupService, Numbers){
+  var watch = null;
   var trackArray = [];
+
+  var map, currentPositionMarker;
+  var mapCenter = new google.maps.LatLng(48.3584,10.9062); //Default map Position (HS AUGSBURG)
 
   /**
    * Takes a Posistion Object and compares the position to the Positions from the "Cameras"-Factory
@@ -205,84 +257,132 @@ angular.module('user.services', [])
      */
   function compareToCams(position){
     var cams = Cameras.all();
-    var deltaDistance = 50 * 90/10000000; // 10 Meter in Dezimalgrad
+    var deltaDistance = 100 * 90/10000000; // 10 Meter in Dezimalgrad
 
-    for(i = 0; i< cams.length; i++){
-      var bool1 = Math.abs(position.coords.longitude) >= Math.abs(cams[i].long) - deltaDistance; // left of cam
-      var bool2 = Math.abs(position.coords.longitude) <= Math.abs(cams[i].long) + deltaDistance; // right of cam
-      var bool3 = Math.abs(position.coords.latitude) >= Math.abs(cams[i].lat) - deltaDistance; // below cam
-      var bool4 = Math.abs(position.coords.latitude) <= Math.abs(cams[i].lat) + deltaDistance; // above cam
-
-      if(bool1 && bool2 && bool3 && bool4) {
+    // x1-x2 y1-y2 < delta
+    for(var cam in cams){
+      var bool1 = Math.abs(Math.abs(position.coords.longitude) - Math.abs(cams[cam].long)) < deltaDistance;
+      var bool2 = Math.abs(Math.abs(position.coords.latitude) - Math.abs(cams[cam].lat)) < deltaDistance;
+      console.log(cam +" : " + bool1 +"&"+ bool2);
+      if(bool1 && bool2) {
         console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
+        var config = {headers: {
+            "content-type": "application/json",
+            "cache-control": "no-cache"}
+        };
+        var data = {
+            rider: Numbers.getSN() ,
+            event: Numbers.getEvent() ,
+            camera: cam,
+            time: position.timestamp
+            };
+        console.log(data);
+        $http.post('https://testserver-ontrack.herokuapp.com/', data, config).then(function(success){console.log('post success');}, function(error){console.log(error);})
+        //PopupService.alert('close to cam!');
+        //PSEUDOCODE HTTP.POST(Numbers.Startnummer, cams[i].id, position.timestamp)
+
       }
     }
   }
 
-  function onTrackSuccess(position){
+  /**
+   * Initializes the Map Element
+   * @param
+   */
+  function initMap()
+  {
+    map = new google.maps.Map(document.getElementById('mapHolder'), {
+      zoom: 18,
+      center: mapCenter,
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    });
+    currentPositionMarker = new google.maps.Marker({
+      map: map,
+      position: mapCenter,
+      title: "Current Position"
+    });
+    currentPositionMarker.setVisible(false);
+  }
 
+  // current position of the user
+  function setCurrentMapPosition(pos) {
+
+    map.panTo(new google.maps.LatLng(
+      pos.coords.latitude,
+      pos.coords.longitude
+    ));
+  }
+
+  function onTrackSuccess(position){
     var lat = position.coords.latitude;
     var lon = position.coords.longitude;
     var alt = position.coords.altitude;
-    if(!alt){
-      alt = 0;
-    }
+    var acc = position.coords.accuracy;
+    setCurrentMapPosition(position);
+    currentPositionMarker.setPosition(new google.maps.LatLng(position.coords.latitude, position.coords.longitude));
+    currentPositionMarker.setVisible(true);
 
     var latElement = document.getElementById('lat');
     var longElement = document.getElementById('long');
     latElement.innerHTML = position.coords.latitude;
     longElement.innerHTML = position.coords.longitude;
 
-    trackArray.push([lat, lon, alt, position.timestamp]);
+    trackArray.push([lat, lon, alt, position.timestamp, acc]);
 
     compareToCams(position);
   }
 
   function onTrackError(error){
-    trackArray.push([999,999, 999, 999]); //Mark lost connection in the Array
+    trackArray.push([999, error.code]); //Mark lost connection in the Array
     console.log(error.code +'\n'+ error.message);
     switch(error.code) {
-      case 1:
+      case error.PERMISSION_DENIED:
             PopupService.alert('GPS Zugriff nicht möglich. Vermutlich hat die App keine Zugriffsrechte');
             break;
-      case 2:
+      case error.POSITION_UNAVAILABLE:
             PopupService.alert('GPS Position nicht verfügbar. Vermutlich keine Satelliten- oder Netzverbindung');
             break;
-      case 3:
+      case error.TIMEOUT:
             PopupService.alert('Timeout');
             break;
     }
   }
 
+
+
   return {
     startTracking : function() {
       ionic.Platform.ready(function () {
         cordova.plugins.backgroundMode.setDefaults({
-          title:  'GPS logging active',
+          title: 'GPS logging active',
           ticker: 'tickertext',
-          text:   'touch to return to App'
+          text: 'touch to return to App'
         });
         cordova.plugins.backgroundMode.enable();
-        watchId = navigator.geolocation.watchPosition(onTrackSuccess,
-          onTrackError,
-          {timeout: 5000, enableHighAccuracy: true, maximumAge: 3000});
+        watch = navigator.geolocation.watchPosition(onTrackSuccess, onTrackError,
+          {timeout: 10000, enableHighAccuracy: true, maximumAge: 3000});
+
       })
     },
     stopTracking : function() {
       ionic.Platform.ready(function(){
         cordova.plugins.backgroundMode.disable();
-        navigator.geolocation.clearWatch(watchId);
+        navigator.geolocation.clearWatch(watch);
+        clearInterval(watch); // TIMEDTRACKING
         console.log(trackArray);
       })
     },
     getArray: function(){
       return trackArray;
+    },
+    initializeMap: function() {
+      initMap();
+      return null;
     }
   }
-
 })
 
-.factory('PopupService',function($ionicPopup) {
+.factory('PopupService',function($ionicPopup, $ionicActionSheet) {
 
   return{
     alert: function(message){
@@ -292,6 +392,54 @@ angular.module('user.services', [])
         template: message
       });
       return alertPopup; //returns Promise
+    },
+    choice: function(){ //FUNKTIONIERT FAST
+      var choiceSheet;
+      choiceSheet = $ionicActionSheet.show({
+        titleText: 'GPX File',
+        buttons: [
+          {text: 'Upload to Strava'},
+          {text: 'Upload to Sportograf'},
+        ],
+        cancelText: 'Show in Browser',
+        destructiveText: '<b>Dont Save</b>',
+        cancel: function(){
+          console.log('canceled');
+          window.location.href = '#/files';
+        },
+        buttonClicked: function(index){
+          switch (index){
+            case 0:
+                  console.log('He wants to Upload to Strava');//UploadFileto to Strava
+                  return true;
+                  break;
+            case 1:
+                  console.log('He wants to Upload to Sportograf');//UploadFileTo Sportograf
+                  return true;
+                  break;
+          }
+        }
+      });
+      return choiceSheet;
+    },
+    customPop: function(){ //NOT FUNCTIONAL
+      var myPopup = $ionicPopup.show({
+        template: '',
+        title: 'What now?',
+        subTitle: 'select what to do with your Track',
+        scope: $scope,
+        buttons: [
+          { text: 'Cancel' },
+          {
+            text: '<b>Save</b>',
+            type: 'button-positive',
+            onTap: function() {
+
+            }
+          }
+        ]
+      });
+      return myPopup;
     }
   }
 })
@@ -313,26 +461,33 @@ angular.module('user.services', [])
     createTrkPt: function(arrayPoint){
       var dateStringUTC = this.createUTCtimestamp(arrayPoint[3]);
       var finalStr;
-      finalStr = '<trkpt lat=\"' + arrayPoint[0] + '\" lon=\"' + arrayPoint[1] + '\"> \n ' +
-        '  <ele>' + arrayPoint[2] + '</ele> \n' +
-        '  <time>' + dateStringUTC + '</time> \n' +
-        '</trkpt>\n';
+      finalStr = '<trkpt lat=\"' + arrayPoint[0] + '\" lon=\"' + arrayPoint[1] + '\"> \n ';
+      if(arrayPoint[2]){
+        finalStr += '  <ele>' + arrayPoint[2] + '</ele> \n';
+      }
+      finalStr += '  <time>' + dateStringUTC + '</time> \n' +
+                  '  <cmt> accuracy'+ arrayPoint[4] +'</cmt> \n' +
+                  '</trkpt>\n';
 
       return finalStr;
     },
     createHeader: function(UTCtimestamp){
-      var er;
-      er = '<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n ' +
+      var it;
+      it = '<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n ' +
         '\n' +
         '<gpx creator=\"SportografApp\" version=\"1.1\" \n' +
+        'xmlns=\"http://www.topografix.com/GPX/1/1\" \n' +
+        'xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \n' +
+        'xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 \n' +
+        'http://www.topografix.com/GPX/1/1/gpx.xsd\"> \n' +
         '  <metadata> \n' +
-        '    <link href=\"http://www.sportograf.com.com\"> \n' +
+        '    <link href=\"http://www.sportograf.com\"> \n' +
         '    <text>Sportograf</text>\n' +
         '    </link>\n' +
         '    <time>' + UTCtimestamp + '</time>\n' +
         '  </metadata>\n';
 
-      return er;
+      return it;
     }
   }
 });

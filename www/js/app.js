@@ -27,11 +27,10 @@ angular.module('user', ['ionic', 'user.controllers', 'user.services'])
       templateUrl: 'templates/events.html',
       controller: 'EventCtrl'
     })
-
-    .state('event-detail', {
-      url: '/events/:eventId',
-          templateUrl: 'templates/eventDetail.html',
-          controller: 'EventDetailCtrl'
+    .state('files', {
+      url: '/files',
+      templateUrl: 'templates/files.html',
+      controller: 'FileCtrl'
     })
     .state('landing', {
       url: '/landing',
