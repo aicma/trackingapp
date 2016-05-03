@@ -29,8 +29,8 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
     var sNumber = document.getElementById('numberfield').value; //Startnummer
 
     if(tempEvent.numberformat.test(sNumber)){   //wenn die eingegebene Zahl dem zum event gehörigem Zahlenformat entspricht, tue folgendes
-      console.log("Numbercheck successful");
-      console.log(tempId);
+      //console.log("Numbercheck successful");
+      //console.log(tempId);
       Numbers.setSN(sNumber);
       Numbers.setEvent(tempId);
       window.location.href = '#/tracking/' + tempId;
@@ -50,7 +50,7 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
   }
 })
 
-.controller('TrackCtrl', function($scope, $http, $stateParams, Events, Tracker, FileHandler, Numbers, PopupService){
+.controller('TrackCtrl', function($scope, $http, $stateParams, Cameras, Events, Tracker, FileHandler, Numbers, PopupService){
 
   $scope.event = Events.get($stateParams.eventId);
   $scope.buttonStyle = "button button-balanced";
@@ -70,27 +70,18 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
     }else if(navigator.geolocation){
       $scope.buttonStyle = "button button-assertive";
       $scope.buttonText = "Stop Tracking";
-      console.log('start tracking');
+      //console.log('start tracking');
       Tracker.startTracking();
       tracking = true;
     }else{
       PopupService.alert('your Device does not support Geolocation');
     }
   };
-  ionic.Platform.ready(Tracker.initializeMap())
-  /*
-  ionic.Platform.ready( function(){
-    var myLatlng = new google.maps.LatLng(48.3584,10.9062);
+  ionic.Platform.ready(function(){
+    console.log('DEVICE READY!');
+    Cameras.init();
+    Tracker.initializeMap();
+  });
 
-    var mapOptions = {
-      center: myLatlng,
-      zoom: 16,
-      mapTypeId: google.maps.MapTypeId.ROADMAP
-    };
-    var map = new google.maps.Map(document.getElementById("mapHolder"),
-      mapOptions);
-    $scope.map = map;
-  })
-  */
 });
 

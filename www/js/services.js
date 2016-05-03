@@ -119,28 +119,32 @@ angular.module('user.services', [])
 })*/
 
 .factory('Cameras', function($http){
-  /*var cams =[
-    {
-      lat: 48.3582,
-      long: 10.9067
-    },
-    {
-      lat: 23.6578,
-      long: 47.3267
-    }
-  ]; */// TESTDATA TODO: Serverabfrage
+  var cams;
+
+  function initcams(){
+    console.log('function called, so thats not the porblem');
+    $http({
+      method: 'GET',
+      url: 'https://testserver-ontrack.herokuapp.com/' //TODO: eventspezifisch incl datenbank
+    }).then(function(response){
+        cams = response.data;
+        console.log(cams);
+      },
+      function(error){console.log(error)}
+    );
+  }
   return {
     all: function(){
-      $http({
-        method: 'GET',
-        url: 'https://testserver-ontrack.herokuapp.com/'
-      }).then(function(response){
-          console.log(response.data);
-          return response.data;
-        },
-        function(error){console.log(error)}
-      );
-      return;
+      if(cams) {
+        return cams;
+      }else{
+        console.error('no cams found');
+      }
+    },
+    init: function(){
+      console.log('called the init');
+      initcams();
+      return null;
     }
   }
 
@@ -204,7 +208,7 @@ angular.module('user.services', [])
               //CALLBACKS
               fileWriter.onwriteend = function (e) {
 
-                console.log('Write of file "' + fileName + '" completed.'+ e);
+                console.log('Write of file "' + fileName + '" completed.');
                 resolve();
               };
               fileWriter.onerror = function (e) {
@@ -255,16 +259,13 @@ angular.module('user.services', [])
      */
   function compareToCams(position){
     var cams = Cameras.all();
+    console.log(cams);
     var deltaDistance = 10 * 90/10000000; // 10 Meter in Dezimalgrad
 
     // x1-x2 y1-y2 < delta
-    for(i = 0; i< cams.length; i++){
-      var bool1 = Math.abs(Math.abs(position.coords.longitude) - Math.abs(cams[i].long)) < deltaDistance;
-      var bool2 = Math.abs(Math.abs(position.coords.latitude) - Math.abs(cams[i].lat)) < deltaDistance;
-      //var bool1 = Math.abs(position.coords.longitude) >= Math.abs(cams[i].long) - deltaDistance; // left of cam
-      //var bool2 = Math.abs(position.coords.longitude) <= Math.abs(cams[i].long) + deltaDistance; // right of cam
-      //var bool3 = Math.abs(position.coords.latitude) >= Math.abs(cams[i].lat) - deltaDistance; // below cam
-      //var bool4 = Math.abs(position.coords.latitude) <= Math.abs(cams[i].lat) + deltaDistance; // above cam
+    for(var cam in cams){
+      var bool1 = Math.abs(Math.abs(position.coords.longitude) - Math.abs(cams[cam].long)) < deltaDistance;
+      var bool2 = Math.abs(Math.abs(position.coords.latitude) - Math.abs(cams[cam].lat)) < deltaDistance;
 
       if(bool1 && bool2) {
         console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
@@ -376,21 +377,9 @@ angular.module('user.services', [])
     getArray: function(){
       return trackArray;
     },
-    getCurrentPos: function(){
-      return currentPos;
-      /*
-      if(currentPos){return currentPos}else {
-        ionic.Platform.ready(function () {
-          navigator.geolocation.getCurrentPosition(function (position) {
-            return position;
-          }, function (error) {
-            console.log(error);
-          }, {timeout: 5000, enableHighAccuracy: true, maximumAge: 3000})
-        })
-      }*/
-    },
     initializeMap: function() {
-      return initMap;
+      initMap();
+      return null;
     }
   }
 })
