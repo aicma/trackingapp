@@ -58,7 +58,7 @@ angular.module('user.services', [])
         }).then(function (response) {
             events = response.data;
             console.log('load-events ' + events);
-            resolve();
+            resolve(events);
           },
           function (error) {
             console.log(error);
