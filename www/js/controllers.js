@@ -1,9 +1,5 @@
 angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCordovaOauth'])
 
-.controller('EventCtrl', function($scope, Events){
-  $scope.events = Events.all();
-})
-
 .controller('FileCtrl', function($scope, FileHandler) {
   $scope.cloudState = "icon ion-android-cloud";
 
@@ -19,16 +15,34 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
 
 })
 
-.controller('LandingCtrl', function($scope, $http , $cordovaOauth, Events, Numbers, PopupService){
-  $scope.events = Events.all();
+.controller('LandingCtrl', function($state, $scope, $http, $ionicLoading, $cordovaOauth, Events, Numbers, PopupService){
+  $scope.$on('$ionicView.beforeEnter', function(){
+    Events.loadEvents().then(function(events){
+      $scope.events = events;
+      $scope.$apply();
+    });
+    //console.log('loading done');
+  });
+
+  $scope.show = function() {
+    $ionicLoading.show({
+      template: '<p>Loading...</p><ion-spinner></ion-spinner>'
+    });
+  };
+  $scope.hide = function(){
+    $ionicLoading.hide();
+  };
 
   $scope.submitData = function (){
     var id = document.getElementById('event').value;
     var tempId =  id.slice(id.search(/ID:\d{1,4}/g)).slice(3).trim(); //Holt sich die Event ID aus der auswahl
     var tempEvent = Events.get(tempId);
     var sNumber = document.getElementById('numberfield').value; //Startnummer
+    console.log(tempEvent);
+    var regex = new RegExp(tempEvent.numberformat, 'i');
+    console.log(regex);
 
-    if(tempEvent.numberformat.test(sNumber)){   //wenn die eingegebene Zahl dem zum event gehörigem Zahlenformat entspricht, tue folgendes
+    if(regex.test(sNumber)){   //wenn die eingegebene Zahl dem zum event gehörigem Zahlenformat entspricht, tue folgendes
       //console.log("Numbercheck successful");
       //console.log(tempId);
       Numbers.setSN(sNumber);
@@ -82,5 +96,6 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
     Tracker.initializeMap();
   });
 
-});
+})
 
+;

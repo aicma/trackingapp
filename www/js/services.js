@@ -22,8 +22,9 @@ angular.module('user.services', [])
   }
 })
 
-.factory('Events', function(){
-  var events = [
+.factory('Events', function($http){
+  var events;
+  /*var events = [
     {
       id: 0,
       name: "Zugspitz Ultratrail",
@@ -45,10 +46,29 @@ angular.module('user.services', [])
       img: "",
       numberformat: /^\d{1,4}\s*[A-B]$/i
     }
-  ];
+  ];*/ //TESTDATA
+
 
   return{
+    loadEvents: function() {
+      return new Promise(function(resolve, reject){
+        $http({
+          method: 'GET',
+          url: 'https://testserver-ontrack.herokuapp.com/events'
+        }).then(function (response) {
+            events = response.data;
+            console.log('load-events ' + events);
+            resolve(events);
+          },
+          function (error) {
+            console.log(error);
+            reject();
+          }
+        );
+      })
+    },
     all: function(){
+      console.log('loading all events ' + events);
       return events;
     },
     get: function(eventId){
@@ -62,72 +82,16 @@ angular.module('user.services', [])
   };
 })//TODO:  Serverabfrage
 
-/*.factory('Riders', function(){
-  var riders = [
-    {
-      id:0,
-      number: 12345,
-      name: ["Alex", "Mersdorf"]
-    },
-    {
-      id:1,
-      number: 54321,
-      name: ["Guido", "Holz"]
-    }
-  ];
-
-  return {
-    all: function(){
-      return riders;
-    },
-    get: function(riderId){
-      for(var i = 0; i<riders.length; i++){
-        if(riders[i].id === parseInt(riderId))
-          {return riders[i];}
-        return null
-      }
-    },
-    getNumber: function(riderNumber){
-      console.log(riderNumber);   /////////////////LOG
-      for(var i = 0; i <riders.length; i++){
-        if(riders[i].number === parseInt(riderNumber))
-        {return riders[i];}
-        console.log('Number not registered');
-        return null;
-      }
-    }
-  }
-
-})  //TESTDATA //TODO: Serverabfrage */
-
-/*.factory('FollowedRiders', function(Riders){
-  var followedRiders = [];      //TODO: Server verbindung
-
-  return {
-    all: function(){
-      return followedRiders;
-    },
-    add: function(rider){
-      //console.log(rider); ///////////////////LOG
-
-      followedRiders.push(rider);
-      console.log('Rider '+ rider.number + ' added');
-      console.log(followedRiders);
-      return null;
-    }
-  }
-})*/
-
 .factory('Cameras', function($http){
   var cams;
 
   function initcams(){
     $http({
       method: 'GET',
-      url: 'https://testserver-ontrack.herokuapp.com/' //TODO: eventspezifisch incl datenbank
+      url: 'https://testserver-ontrack.herokuapp.com/cameras' //TODO: eventspezifisch incl datenbank
     }).then(function(response){
         cams = response.data;
-        console.log(cams);
+        //console.log(cams);
       },
       function(error){console.log(error)}
     );
@@ -276,8 +240,7 @@ angular.module('user.services', [])
             camera: cam,
             time: position.timestamp
             };
-        console.log(data);
-        $http.post('https://testserver-ontrack.herokuapp.com/', data, config).then(function(success){console.log('post success');}, function(error){console.log(error);})
+        $http.post('https://testserver-ontrack.herokuapp.com/rider', data, config).then(function(success){console.log('post success');}, function(error){console.log(error);})
         //PopupService.alert('close to cam!');
         //PSEUDOCODE HTTP.POST(Numbers.Startnummer, cams[i].id, position.timestamp)
 
