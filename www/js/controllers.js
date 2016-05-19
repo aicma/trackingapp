@@ -1,9 +1,5 @@
 angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCordovaOauth'])
 
-.controller('EventCtrl', function($scope, Events){
-  $scope.events = Events.all();
-})
-
 .controller('FileCtrl', function($scope, FileHandler) {
   $scope.cloudState = "icon ion-android-cloud";
 
@@ -19,8 +15,23 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
 
 })
 
-.controller('LandingCtrl', function($scope, $http , $cordovaOauth, Events, Numbers, PopupService){
-  $scope.events = Events.all();
+.controller('LandingCtrl', function($state, $scope, $http, $ionicLoading, $cordovaOauth, Events, Numbers, PopupService){
+  $scope.$on('$ionicView.beforeEnter', function(){
+    Events.loadEvents().then(function(){
+      $scope.events = Events.all();
+
+    });
+    //console.log('loading done');
+  });
+
+  $scope.show = function() {
+    $ionicLoading.show({
+      template: '<p>Loading...</p><ion-spinner></ion-spinner>'
+    });
+  };
+  $scope.hide = function(){
+    $ionicLoading.hide();
+  };
 
   $scope.submitData = function (){
     var id = document.getElementById('event').value;
@@ -82,5 +93,6 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
     Tracker.initializeMap();
   });
 
-});
+})
 
+;
