@@ -16,31 +16,23 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
 })
 
 .controller('LandingCtrl', function($state, $scope, $http, $ionicLoading, $cordovaOauth, Events, Numbers, PopupService){
-  $scope.$on('$ionicView.beforeEnter', function(){
+  $scope.$on('$ionicView.enter', function(){
+    $ionicLoading.show({template:'<ion-spinner></ion-spinner>'});
     Events.loadEvents().then(function(events){
       $scope.events = events;
       $scope.$apply();
+      $ionicLoading.hide();
     });
-    //console.log('loading done');
   });
-
-  $scope.show = function() {
-    $ionicLoading.show({
-      template: '<p>Loading...</p><ion-spinner></ion-spinner>'
-    });
-  };
-  $scope.hide = function(){
-    $ionicLoading.hide();
-  };
 
   $scope.submitData = function (){
     var id = document.getElementById('event').value;
     var tempId =  id.slice(id.search(/ID:\d{1,4}/g)).slice(3).trim(); //Holt sich die Event ID aus der auswahl
     var tempEvent = Events.get(tempId);
     var sNumber = document.getElementById('numberfield').value; //Startnummer
-    console.log(tempEvent);
+
     var regex = new RegExp(tempEvent.numberformat, 'i');
-    console.log(regex);
+
 
     if(regex.test(sNumber)){   //wenn die eingegebene Zahl dem zum event gehörigem Zahlenformat entspricht, tue folgendes
       //console.log("Numbercheck successful");

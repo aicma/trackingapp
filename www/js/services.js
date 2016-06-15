@@ -80,7 +80,7 @@ angular.module('user.services', [])
       return null;
     }
   };
-})//TODO:  Serverabfrage
+})
 
 .factory('Cameras', function($http){
   var cams;
@@ -207,40 +207,47 @@ angular.module('user.services', [])
   }
 })
 
-.factory('Tracker', function($http, Cameras, PopupService, Numbers){
+.factory('Tracker', function($http, Cameras, PopupService, Numbers)
+{
   var watch = null;
   var trackArray = [];
 
   var map, currentPositionMarker;
-  var mapCenter = new google.maps.LatLng(48.3584,10.9062); //Default map Position (HS AUGSBURG)
+  var mapCenter = new google.maps.LatLng(48.3584, 10.9062); //Default map Position (HS AUGSBURG)
 
   /**
    * Takes a Posistion Object and compares the position to the Positions from the "Cameras"-Factory
    * If true it does something
    * @param position
-     */
-  function compareToCams(position){
+   */
+  function compareToCams(position) {
     var cams = Cameras.all();
-    var deltaDistance = 100 * 90/10000000; // 10 Meter in Dezimalgrad
+    var deltaDistance = 100 * 90 / 10000000; // 10 Meter in Dezimalgrad
 
     // x1-x2 y1-y2 < delta
-    for(var cam in cams){
+    for (var cam in cams) {
       var bool1 = Math.abs(Math.abs(position.coords.longitude) - Math.abs(cams[cam].long)) < deltaDistance;
       var bool2 = Math.abs(Math.abs(position.coords.latitude) - Math.abs(cams[cam].lat)) < deltaDistance;
-      console.log(cam +" : " + bool1 +"&"+ bool2);
-      if(bool1 && bool2) {
+      console.log(cam + " : " + bool1 + "&" + bool2);
+      if (bool1 && bool2) {
         console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
-        var config = {headers: {
+        var config = {
+          headers: {
             "content-type": "application/json",
-            "cache-control": "no-cache"}
+            "cache-control": "no-cache"
+          }
         };
         var data = {
-            rider: Numbers.getSN() ,
-            event: Numbers.getEvent() ,
-            camera: cam,
-            time: position.timestamp
-            };
-        $http.post('https://testserver-ontrack.herokuapp.com/rider', data, config).then(function(success){console.log('post success');}, function(error){console.log(error);})
+          rider: Numbers.getSN(),
+          event: Numbers.getEvent(),
+          camera: cam,
+          time: position.timestamp
+        };
+        $http.post('https://testserver-ontrack.herokuapp.com/rider', data, config).then(function (success) {
+          console.log('post success');
+        }, function (error) {
+          console.log(error);
+        })
         //PopupService.alert('close to cam!');
         //PSEUDOCODE HTTP.POST(Numbers.Startnummer, cams[i].id, position.timestamp)
 
@@ -252,8 +259,7 @@ angular.module('user.services', [])
    * Initializes the Map Element
    * @param
    */
-  function initMap()
-  {
+  function initMap() {
     map = new google.maps.Map(document.getElementById('mapHolder'), {
       zoom: 18,
       center: mapCenter,
@@ -276,7 +282,7 @@ angular.module('user.services', [])
     ));
   }
 
-  function onTrackSuccess(position){
+  function onTrackSuccess(position) {
     var lat = position.coords.latitude;
     var lon = position.coords.longitude;
     var alt = position.coords.altitude;
@@ -295,26 +301,24 @@ angular.module('user.services', [])
     compareToCams(position);
   }
 
-  function onTrackError(error){
+  function onTrackError(error) {
     trackArray.push([999, error.code]); //Mark lost connection in the Array
-    console.log(error.code +'\n'+ error.message);
-    switch(error.code) {
+    console.log(error.code + '\n' + error.message);
+    switch (error.code) {
       case error.PERMISSION_DENIED:
-            PopupService.alert('GPS Zugriff nicht möglich. Vermutlich hat die App keine Zugriffsrechte');
-            break;
+        PopupService.alert('GPS Zugriff nicht möglich. Vermutlich hat die App keine Zugriffsrechte');
+        break;
       case error.POSITION_UNAVAILABLE:
-            PopupService.alert('GPS Position nicht verfügbar. Vermutlich keine Satelliten- oder Netzverbindung');
-            break;
+        PopupService.alert('GPS Position nicht verfügbar. Vermutlich keine Satelliten- oder Netzverbindung');
+        break;
       case error.TIMEOUT:
-            PopupService.alert('Timeout');
-            break;
+        PopupService.alert('Timeout');
+        break;
     }
   }
 
-
-
   return {
-    startTracking : function() {
+    startTracking: function () {
       ionic.Platform.ready(function () {
         cordova.plugins.backgroundMode.setDefaults({
           title: 'GPS logging active',
@@ -327,22 +331,23 @@ angular.module('user.services', [])
 
       })
     },
-    stopTracking : function() {
-      ionic.Platform.ready(function(){
+    stopTracking: function () {
+      ionic.Platform.ready(function () {
         cordova.plugins.backgroundMode.disable();
         navigator.geolocation.clearWatch(watch);
         clearInterval(watch); // TIMEDTRACKING
         console.log(trackArray);
       })
     },
-    getArray: function(){
+    getArray: function () {
       return trackArray;
     },
-    initializeMap: function() {
+    initializeMap: function () {
       initMap();
       return null;
     }
   }
+
 })
 
 .factory('PopupService',function($ionicPopup, $ionicActionSheet) {
