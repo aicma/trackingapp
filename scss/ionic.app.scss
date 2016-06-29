@@ -15,6 +15,22 @@ $royal:                           #886aea !default;
 $dark:                            #444 !default;
 */
 
+$dark:                            #353535;
+.main {
+  .pane,
+  .view {
+    background-color: #353535;
+    color: #fff;
+  }
+}
+
+.landing-view {
+
+}
+.tracking-view{
+
+}
+
 // The path for our ionicons font files, relative to the built CSS in www/css
 $ionicons-font-path: "../lib/ionic/fonts" !default;
 

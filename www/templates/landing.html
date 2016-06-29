@@ -1,10 +1,15 @@
-<ion-view view-title="Sportograf Tracker">
+<ion-view view-title="Sportograf Tracker" class="landing-view">
+  <ion-nav-buttons side="primary">
+    <button class="button button-icon icon ion-folder" ui-sref="files"></button>
+  </ion-nav-buttons>
+
   <ion-content>
-    Hello and welcome to Sportografs mobile tracking App!
-    <br>
-    Please start by picking a race and then enter you starting number
-    <div class="list">
-      <label class="item item-input item-select">
+    <ion-refresher
+      pulling-text="Pull to refresh..."
+      on-refresh="refresh()">
+    </ion-refresher>
+    <div class="list list-inset">
+      <label class="item item-input item-select padding-vertical">
         <div class="input-label">
           Your Race
         </div>
@@ -15,23 +20,23 @@
           </option>
         </select>
       </label>
-      <label class="item item-input">
+    </div>
+    <div class="list list-inset">
+      <label class="item item-input padding-vertical">
         <input id="numberfield" type="text" placeholder="Your number">
       </label>
-      <button class="button button-block button-positive" ng-click="submitData()">
+    </div>
+    <button class="button button-block button-light" ng-click="submitData()">
         Submit
-      </button>
+    </button>
 
-     <!-- <ul>
-        <li><b>EVENTDEBUG LIST</b></li>
-        <li ng-repeat="event in events">{{event.name}}, ID:{{event.id}}</li>
-      </ul>-->
 
+
+    <!--
+    <div class="bar bar-footer bar-dark">
+      <button class="button button-clear" ui-sref="files">browse Saved files</button>
     </div>
-    <div class="bar bar-footer">
-      <button class="button button-clear" ng-click="goToFiles()">browse Saved files</button>
-      <button class="button button-clear pull-right" ng-click="connectStrava()">connect with strava</button>
-    </div>
+    -->
   </ion-content>
 
 

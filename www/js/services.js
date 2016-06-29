@@ -1,5 +1,8 @@
 angular.module('user.services', [])
 
+.constant('SERVER',{
+  "URL": "https://testserver-ontrack.herokuapp.com"
+})
 .factory('Numbers', function(){
   var Startnummer;
   var EventId;
@@ -22,7 +25,7 @@ angular.module('user.services', [])
   }
 })
 
-.factory('Events', function($http){
+.factory('Events', function($http, SERVER){
   var events;
   /*var events = [
     {
@@ -54,7 +57,7 @@ angular.module('user.services', [])
       return new Promise(function(resolve, reject){
         $http({
           method: 'GET',
-          url: 'https://testserver-ontrack.herokuapp.com/events'
+          url: SERVER.URL + '/events'
         }).then(function (response) {
             events = response.data;
             console.log('load-events ' + events);
@@ -82,16 +85,16 @@ angular.module('user.services', [])
   };
 })
 
-.factory('Cameras', function($http){
+.factory('Cameras', function($http, SERVER){
   var cams;
 
-  function initcams(){
+  function getcams(eventId){
     $http({
       method: 'GET',
-      url: 'https://testserver-ontrack.herokuapp.com/cameras' //TODO: eventspezifisch incl datenbank
+      url: SERVER.URL + '/cameras?id='+ eventId //TODO: eventspezifisch incl datenbank
     }).then(function(response){
         cams = response.data;
-        //console.log(cams);
+        console.log(cams);
       },
       function(error){console.log(error)}
     );
@@ -104,8 +107,8 @@ angular.module('user.services', [])
         console.error('no cams found');
       }
     },
-    init: function(){
-      initcams();
+    init: function(eventId){
+      getcams(eventId);
       return null;
     }
   }
@@ -164,7 +167,7 @@ angular.module('user.services', [])
           if(i==data.length-1){trkString += '</trkseg> \n </trk> \n </gpx>';}
         }
 
-        window.resolveLocalFileSystemURL(cordova.file.dataDirectory, function (directoryEntry) {
+        window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory, function (directoryEntry) {
           directoryEntry.getFile(fileName, {create: true}, function (fileEntry) {
             fileEntry.createWriter(function (fileWriter) {
               //CALLBACKS
@@ -207,8 +210,7 @@ angular.module('user.services', [])
   }
 })
 
-.factory('Tracker', function($http, Cameras, PopupService, Numbers)
-{
+.factory('Tracker', function($http, $cordovaGeolocation, Cameras, PopupService, Numbers) {
   var watch = null;
   var trackArray = [];
 
@@ -222,7 +224,7 @@ angular.module('user.services', [])
    */
   function compareToCams(position) {
     var cams = Cameras.all();
-    var deltaDistance = 100 * 90 / 10000000; // 10 Meter in Dezimalgrad
+    var deltaDistance = 10 * 90 / 10000000; // 10 Meter in Dezimalgrad
 
     // x1-x2 y1-y2 < delta
     for (var cam in cams) {
@@ -230,7 +232,7 @@ angular.module('user.services', [])
       var bool2 = Math.abs(Math.abs(position.coords.latitude) - Math.abs(cams[cam].lat)) < deltaDistance;
       console.log(cam + " : " + bool1 + "&" + bool2);
       if (bool1 && bool2) {
-        console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
+        //console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
         var config = {
           headers: {
             "content-type": "application/json",
@@ -248,8 +250,6 @@ angular.module('user.services', [])
         }, function (error) {
           console.log(error);
         })
-        //PopupService.alert('close to cam!');
-        //PSEUDOCODE HTTP.POST(Numbers.Startnummer, cams[i].id, position.timestamp)
 
       }
     }
@@ -335,7 +335,6 @@ angular.module('user.services', [])
       ionic.Platform.ready(function () {
         cordova.plugins.backgroundMode.disable();
         navigator.geolocation.clearWatch(watch);
-        clearInterval(watch); // TIMEDTRACKING
         console.log(trackArray);
       })
     },
@@ -361,6 +360,10 @@ angular.module('user.services', [])
       });
       return alertPopup; //returns Promise
     },
+    /**
+     *
+     * @returns {Function|*}
+       */
     choice: function(){ //FUNKTIONIERT FAST
       var choiceSheet;
       choiceSheet = $ionicActionSheet.show({
@@ -390,19 +393,23 @@ angular.module('user.services', [])
       });
       return choiceSheet;
     },
-    customPop: function(){ //NOT FUNCTIONAL
+    ConnectPop: function(){ //NOT FUNCTIONAL
       var myPopup = $ionicPopup.show({
         template: '',
-        title: 'What now?',
-        subTitle: 'select what to do with your Track',
+        title: 'No Internet Connection found',
+        subTitle: '',
         scope: $scope,
         buttons: [
-          { text: 'Cancel' },
+          { text: 'Exit App',
+            onTap: function(){
+              ionic.Platform.exitApp();
+            }
+          },
           {
-            text: '<b>Save</b>',
+            text: 'Browse Files',
             type: 'button-positive',
             onTap: function() {
-
+              window.location.href = '#/files';
             }
           }
         ]
@@ -415,6 +422,11 @@ angular.module('user.services', [])
 .factory('GPXCreator', function(){
 
   return{
+    /**
+     * takes any sort of timestamp format and returns it in UTC-Form
+     * @param timestamp
+     * @returns {string|*}
+       */
     createUTCtimestamp: function(timestamp){
       var date = new Date(timestamp);
       var resultDate;
@@ -426,6 +438,12 @@ angular.module('user.services', [])
         + ("0" + date.getUTCSeconds()).slice(-2) + 'Z';
     return resultDate;
     },
+    /**
+     * takes an array of [Latitude, Longitude, (elevation), timestamp, accuracy]
+     * returns GPX-compatible <trkpt> Element as String
+     * @param arrayPoint
+     * @returns {string|*}
+       */
     createTrkPt: function(arrayPoint){
       var dateStringUTC = this.createUTCtimestamp(arrayPoint[3]);
       var finalStr;
@@ -439,6 +457,11 @@ angular.module('user.services', [])
 
       return finalStr;
     },
+    /**
+     * Takes an UTC-formatted timestamp and returns a GPX-compatible header as String
+     * @param UTCtimestamp
+     * @returns {string|*}
+       */
     createHeader: function(UTCtimestamp){
       var it;
       it = '<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n ' +

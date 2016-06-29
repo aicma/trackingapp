@@ -1,4 +1,12 @@
 {
-  "name": "userapp",
-  "app_id": "89b05580"
+  "name": "SG Tracker",
+  "app_id": "89b05580",
+  "gulpStartupTasks": [
+    "sass",
+    "watch"
+  ],
+  "watchPatterns": [
+    "www/**/*",
+    "!www/lib/**/*"
+  ]
 }

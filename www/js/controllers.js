@@ -4,9 +4,10 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
   $scope.cloudState = "icon ion-android-cloud";
 
   $scope.upload = function(file){
+    //PSEUDOCODE: OPEN POPOVER ->Select Service -> Oauth Service -> Upload(file)
   };
 
-  FileHandler.readDirectory(cordova.file.dataDirectory).then(function(result){
+  FileHandler.readDirectory(cordova.file.externalDataDirectory).then(function(result){
     if(result){$scope.files = result;}
     else{$scope.files = [];}
   },function(err){
@@ -15,15 +16,33 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
 
 })
 
-.controller('LandingCtrl', function($state, $scope, $http, $ionicLoading, $cordovaOauth, Events, Numbers, PopupService){
-  $scope.$on('$ionicView.enter', function(){
-    $ionicLoading.show({template:'<ion-spinner></ion-spinner>'});
-    Events.loadEvents().then(function(events){
+.controller('LandingCtrl', function($timeout, $state, $scope, $http, $ionicLoading, $cordovaOauth, Events, Numbers, PopupService){
+
+  function loadingFailed(){
+    $ionicLoading.hide();
+    PopupService.alert('Event-Loading timed out! \n Please check your Internet-Connection and try again');
+    $scope.$broadcast('scroll.refreshComplete');
+  }
+
+  function loadEvents(){
+    $ionicLoading.show({template: '<p>Loading Events ... </p><ion-spinner></ion-spinner>'});
+    var timer = $timeout(loadingFailed, 10000);
+    Events.loadEvents().then(function (events) {
+      $timeout.cancel(timer);
       $scope.events = events;
       $scope.$apply();
       $ionicLoading.hide();
+      $scope.$broadcast('scroll.refreshComplete');
     });
+  }
+
+  $scope.$on('$ionicView.enter', function(){
+    loadEvents();
   });
+
+  $scope.refresh = function(){
+    loadEvents();
+  };
 
   $scope.submitData = function (){
     var id = document.getElementById('event').value;
@@ -44,9 +63,6 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
       PopupService.alert('Das eingegebene Zahlenformat passt nicht! Bitte kontrolliere deine Eingabe');
     }
   };
-  $scope.goToFiles = function(){
-    window.location.href = '#/files';
-  };
   $scope.connectStrava = function(){
     $cordovaOauth.strava('11064','4fcd0f8ab6306d68ee7d78af9b18b29e4180512d', ['write']).then(function(result){
       console.log("ReturnObjekt " +JSON.stringify(result));
@@ -59,14 +75,14 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
 .controller('TrackCtrl', function($scope, $http, $stateParams, Cameras, Events, Tracker, FileHandler, Numbers, PopupService){
 
   $scope.event = Events.get($stateParams.eventId);
-  $scope.buttonStyle = "button button-balanced";
+  $scope.buttonStyle = "button button-block button-balanced";
   $scope.buttonText = "Start Tracking";
 
   var tracking = false;
 
   $scope.tracking = function(){
     if(tracking){
-      $scope.buttonStyle = "button button-balanced";
+      $scope.buttonStyle = "button button-block button-balanced";
       $scope.buttonText = "Start Tracking";
       //console.log('stop tracking');
       Tracker.stopTracking();
@@ -74,7 +90,7 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
       FileHandler.writeGPXFile(Numbers.getSN() +"at"+Numbers.getEvent() + ".gpx", Tracker.getArray());
 
     }else if(navigator.geolocation){
-      $scope.buttonStyle = "button button-assertive";
+      $scope.buttonStyle = "button button-block button-assertive";
       $scope.buttonText = "Stop Tracking";
       //console.log('start tracking');
       Tracker.startTracking();
@@ -83,8 +99,8 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
       PopupService.alert('your Device does not support Geolocation');
     }
   };
-  ionic.Platform.ready(function(){
-    Cameras.init();
+  $scope.$on('$ionicView.enter', function(){
+    Cameras.init($stateParams.eventId);
     Tracker.initializeMap();
   });
 
