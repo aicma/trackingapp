@@ -27,35 +27,15 @@ angular.module('user.services', [])
 
 .factory('Events', function($http, SERVER){
   var events;
-  /*var events = [
-    {
-      id: 0,
-      name: "Zugspitz Ultratrail",
-      date: new Date("2016-06-23"),
-      img: "",
-      numberformat: /^\d{4}$/
-    },
-    {
-      id: 1,
-      name: "Rad am Ring",
-      date: new Date("2016-07-23"),
-      img: "",
-      numberformat: /^[A-B]{1}\s*\d{1,4}$/i
-    },
-    {
-      id: 2,
-      name: "TestEvent",
-      date: new Date("2016-02-23"),
-      img: "",
-      numberformat: /^\d{1,4}\s*[A-B]$/i
-    }
-  ];*/ //TESTDATA
 
 
   return{
     loadEvents: function() {
       return new Promise(function(resolve, reject){
         $http({
+          headers:{
+            "Access-Control-Allow-Origin":"*"
+          },
           method: 'GET',
           url: SERVER.URL + '/events'
         }).then(function (response) {
@@ -115,7 +95,7 @@ angular.module('user.services', [])
 
 })
 
-.factory('FileHandler', function($q, GPXCreator, Numbers){
+.factory('FileHandler', function(GPXCreator, Numbers){
 
   var errorHandler = function (fileName, e) {
     var msg = '';
@@ -145,6 +125,32 @@ angular.module('user.services', [])
     console.log('Error (' + fileName + '): ' + msg);
   };
 
+  function writeFile(fileName, data){
+    return new Promise(function(resolve, reject)
+    {
+      window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory, function (directoryEntry) {
+        directoryEntry.getFile(fileName, {create: true}, function (fileEntry) {
+          fileEntry.createWriter(function (fileWriter) {
+            //CALLBACKS
+            fileWriter.onwriteend = function (e) {
+
+              console.log('Write of file "' + fileName + '" completed.');
+              resolve();
+            };
+            fileWriter.onerror = function (e) {
+              console.log('Write failed: ' + e.toString());
+              reject();
+            };
+
+            //ACTUAL MAGIC HAPPENING
+            var blob = new Blob(data, {type: 'text/plain'});
+            fileWriter.write(blob);
+          }, errorHandler.bind(null, fileName));
+        }, errorHandler.bind(null, fileName));
+      }, errorHandler.bind(null, fileName));
+    })
+  }
+
   return {
     /**
      * Accepts a filename and data Array with trackpoints. Writes out a header and an trkpt for every array element.
@@ -155,40 +161,47 @@ angular.module('user.services', [])
       console.log('writing file...');
 
       return new Promise(function (resolve, reject) {
-        var trkString = GPXCreator.createHeader(GPXCreator.createUTCtimestamp(new Date()));
+        //create GPX1.1 header with the time the recording started
+        var trkString = GPXCreator.createHeader(GPXCreator.createUTCtimestamp(data[0][3]));
 
         for(var i=0;i<data.length;i++){
-          if(i==0){trkString+= '<trk> \n <name>' + Numbers.getSN() + 'at Event#' + Numbers.getEvent() + '</name> \n <trkseg>\n'} //GET EVENT NAME HERE?
+          //if its the first element, name the track with the IDs and open the first trkSegment
+          if(i==0){trkString+= '<trk> \n <name>' + Numbers.getSN() + 'at EventID#' + Numbers.getEvent() + '</name> \n <trkseg>\n'}
           if(data[i][0] == 999){
+            //if there was an error, close current trksegment and open a new one
             trkString += '</trkseg> \n <trkseg>\n';
           }else {
+            //for any other point, create a trkpoint and add it to the string
             trkString += GPXCreator.createTrkPt(data[i]);
           }
+          //if its the last element, close the file
           if(i==data.length-1){trkString += '</trkseg> \n </trk> \n </gpx>';}
         }
 
-        window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory, function (directoryEntry) {
-          directoryEntry.getFile(fileName, {create: true}, function (fileEntry) {
-            fileEntry.createWriter(function (fileWriter) {
-              //CALLBACKS
-              fileWriter.onwriteend = function (e) {
-
-                console.log('Write of file "' + fileName + '" completed.');
-                resolve();
-              };
-              fileWriter.onerror = function (e) {
-                console.log('Write failed: ' + e.toString());
-                reject();
-              };
-
-              //ACTUAL MAGIC HAPPENING
-              var blob = new Blob([trkString], {type: 'text/plain'});
-              fileWriter.write(blob);
-            }, errorHandler.bind(null, fileName));
-          }, errorHandler.bind(null, fileName));
-        }, errorHandler.bind(null, fileName));
+        writeFile(fileName,[trkString]).then(resolve(),reject());
+        //window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory, function (directoryEntry) {
+        //  directoryEntry.getFile(fileName, {create: true}, function (fileEntry) {
+        //    fileEntry.createWriter(function (fileWriter) {
+        //      //CALLBACKS
+        //      fileWriter.onwriteend = function (e) {
+        //
+        //        console.log('Write of file "' + fileName + '" completed.');
+        //        resolve();
+        //      };
+        //      fileWriter.onerror = function (e) {
+        //        console.log('Write failed: ' + e.toString());
+        //        reject();
+        //      };
+        //
+        //      //ACTUAL MAGIC HAPPENING
+        //      var blob = new Blob([trkString], {type: 'text/plain'});
+        //      fileWriter.write(blob);
+        //    }, errorHandler.bind(null, fileName));
+        //  }, errorHandler.bind(null, fileName));
+        //}, errorHandler.bind(null, fileName));
       })
     },
+
     readDirectory: function(pathToDir){
      console.log('reading directory...');
       return new Promise(function(resolve, reject){
@@ -206,25 +219,52 @@ angular.module('user.services', [])
             });
           })
       })
+    },
+    write: function(fileName, data) {
+      writeFile(fileName, data);
     }
   }
 })
 
-.factory('Tracker', function($http, $cordovaGeolocation, Cameras, PopupService, Numbers) {
+.factory('Tracker', function($http, $cordovaGeolocation, Cameras, PopupService, Numbers, FileHandler) {
   var watch = null;
   var trackArray = [];
+  var camLog = [];
 
   var map, currentPositionMarker;
   var mapCenter = new google.maps.LatLng(48.3584, 10.9062); //Default map Position (HS AUGSBURG)
 
+  function checkConnection(){
+    if(navigator.connection.type != Connection.NONE) {
+      console.log('connected via: '+ navigator.connection.type);
+      console.log('current logs:' + camLog.length);
+
+      for (var i = camLog.length - 1; i >= 0; i--) {
+        $http.post('https://testserver-ontrack.herokuapp.com/rider', JSON.parse(camLog[i]), {
+          headers: {
+            "content-type": "application/json",
+            "cache-control": "no-cache"
+          }
+        }).then(function (success) {
+            console.log(camLog.length);
+            console.log('Camlog elmnt post success');
+            console.log('we popped: ' + camLog.pop());
+          }, function (error) {
+            console.log(error);
+          }
+        )
+      }
+    }else{console.log(navigator.connection.type);}
+  }
+
   /**
    * Takes a Posistion Object and compares the position to the Positions from the "Cameras"-Factory
-   * If true it does something
+   * If true it does something TODO: check connection save localy if false, upload everthing asap.
    * @param position
    */
   function compareToCams(position) {
     var cams = Cameras.all();
-    var deltaDistance = 10 * 90 / 10000000; // 10 Meter in Dezimalgrad
+    var deltaDistance = 50 * 90 / 10000000; // 50 Meter in Dezimalgrad
 
     // x1-x2 y1-y2 < delta
     for (var cam in cams) {
@@ -232,25 +272,31 @@ angular.module('user.services', [])
       var bool2 = Math.abs(Math.abs(position.coords.latitude) - Math.abs(cams[cam].lat)) < deltaDistance;
       console.log(cam + " : " + bool1 + "&" + bool2);
       if (bool1 && bool2) {
-        //console.log("YOU ARE CLOSE TO A CAMERA!!!! DO SOMETHING!"); //TODO: send position to server
+        //CLOSE TO A CAM
         var config = {
           headers: {
             "content-type": "application/json",
             "cache-control": "no-cache"
           }
-        };
+        }; //write Header
         var data = {
           rider: Numbers.getSN(),
           event: Numbers.getEvent(),
           camera: cam,
           time: position.timestamp
-        };
-        $http.post('https://testserver-ontrack.herokuapp.com/rider', data, config).then(function (success) {
-          console.log('post success');
-        }, function (error) {
-          console.log(error);
-        })
-
+        }; //set up data to transfer
+        //TRY UPLOAD
+        if(navigator.connection.type != Connection.NONE) {
+          console.log('App is connected via: '+ navigator.connection.type +', will upload now');
+          $http.post('https://testserver-ontrack.herokuapp.com/rider', data, config).then(function (success) {
+            console.log('post success');
+          }, function (error) {
+            console.log(error);
+          })
+        }else{
+          console.log('no connection, will cache');
+          camLog.unshift(JSON.stringify(data)); //add the MOST RECENT element to the BEGINNING of the array
+        }
       }
     }
   }
@@ -273,7 +319,10 @@ angular.module('user.services', [])
     currentPositionMarker.setVisible(false);
   }
 
-  // current position of the user
+  /**
+   * pans the Map element to the current position of the user
+   * @param pos
+     */
   function setCurrentMapPosition(pos) {
 
     map.panTo(new google.maps.LatLng(
@@ -282,7 +331,12 @@ angular.module('user.services', [])
     ));
   }
 
+  /**
+   * Success callback of the watchPosition function. fires every time the device sends a new position element
+   * @param position
+     */
   function onTrackSuccess(position) {
+    checkConnection();
     var lat = position.coords.latitude;
     var lon = position.coords.longitude;
     var alt = position.coords.altitude;
@@ -301,6 +355,10 @@ angular.module('user.services', [])
     compareToCams(position);
   }
 
+  /**
+   * Error callback of watchPosition function. fires whenever the device is unable to return a position within the timeout
+   * @param error
+     */
   function onTrackError(error) {
     trackArray.push([999, error.code]); //Mark lost connection in the Array
     console.log(error.code + '\n' + error.message);
@@ -327,7 +385,7 @@ angular.module('user.services', [])
         });
         cordova.plugins.backgroundMode.enable();
         watch = navigator.geolocation.watchPosition(onTrackSuccess, onTrackError,
-          {timeout: 10000, enableHighAccuracy: true, maximumAge: 3000});
+          {timeout: 10*1000, enableHighAccuracy: true, maximumAge: 3*1000});
 
       })
     },
@@ -341,6 +399,9 @@ angular.module('user.services', [])
     getArray: function () {
       return trackArray;
     },
+    getCamLog: function(){
+      return camLog;
+    },
     initializeMap: function () {
       initMap();
       return null;
@@ -349,72 +410,21 @@ angular.module('user.services', [])
 
 })
 
-.factory('PopupService',function($ionicPopup, $ionicActionSheet) {
+.factory('PopupService',function($ionicPopup) {
 
   return{
+    /**
+     * Just a Alert-PopUp Wrapper
+     * @param message
+     * @returns {*}
+       */
     alert: function(message){
       var alertPopup;
       alertPopup = $ionicPopup.alert({
-        title: 'Warnung',
+        title: 'Warning',
         template: message
       });
       return alertPopup; //returns Promise
-    },
-    /**
-     *
-     * @returns {Function|*}
-       */
-    choice: function(){ //FUNKTIONIERT FAST
-      var choiceSheet;
-      choiceSheet = $ionicActionSheet.show({
-        titleText: 'GPX File',
-        buttons: [
-          {text: 'Upload to Strava'},
-          {text: 'Upload to Sportograf'},
-        ],
-        cancelText: 'Show in Browser',
-        destructiveText: '<b>Dont Save</b>',
-        cancel: function(){
-          console.log('canceled');
-          window.location.href = '#/files';
-        },
-        buttonClicked: function(index){
-          switch (index){
-            case 0:
-                  console.log('He wants to Upload to Strava');//UploadFileto to Strava
-                  return true;
-                  break;
-            case 1:
-                  console.log('He wants to Upload to Sportograf');//UploadFileTo Sportograf
-                  return true;
-                  break;
-          }
-        }
-      });
-      return choiceSheet;
-    },
-    ConnectPop: function(){ //NOT FUNCTIONAL
-      var myPopup = $ionicPopup.show({
-        template: '',
-        title: 'No Internet Connection found',
-        subTitle: '',
-        scope: $scope,
-        buttons: [
-          { text: 'Exit App',
-            onTap: function(){
-              ionic.Platform.exitApp();
-            }
-          },
-          {
-            text: 'Browse Files',
-            type: 'button-positive',
-            onTap: function() {
-              window.location.href = '#/files';
-            }
-          }
-        ]
-      });
-      return myPopup;
     }
   }
 })

@@ -78,6 +78,38 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
   $scope.buttonStyle = "button button-block button-balanced";
   $scope.buttonText = "Start Tracking";
 
+  ionic.Platform.ready(function(){
+    //document.addEventListener("online", onOnline(), false);
+    //document.addEventListener("offline", onDisco(), false);
+  });
+
+  function onDisco(){
+    console.log('DISCOnnect!');
+    console.log(navigator.connection.type);
+  }
+
+  function onOnline(){
+    //DEVICE got connection again, try to upload the camlog!
+      console.log('connected via: '+ navigator.connection.type);
+      var logs = Tracker.getCamLog();
+      console.log('current logs:' +logs);
+
+      for(var i = logs.length-1; i >= 0; i--){
+        $http.post('https://testserver-ontrack.herokuapp.com/rider', JSON.parse(logs[i]), {
+          headers: {
+            "content-type": "application/json",
+            "cache-control": "no-cache"
+          }
+        }).then(function (success) {
+          console.log(logs.length);
+          console.log('Camlog element post success');
+          console.log('we popped: ' + logs.pop());
+        }, function (error) {
+          console.log(error);
+        }
+        )
+      }
+  }
   var tracking = false;
 
   $scope.tracking = function(){
@@ -87,6 +119,7 @@ angular.module('user.controllers', ['user.services', 'ionic', 'ngCordova', 'ngCo
       //console.log('stop tracking');
       Tracker.stopTracking();
       tracking = false;
+      //FileHandler.write(Numbers.getEvent() +"Camlog.json", Tracker.getCamLog()); //Not really necessary since after the race its rather pointless
       FileHandler.writeGPXFile(Numbers.getSN() +"at"+Numbers.getEvent() + ".gpx", Tracker.getArray());
 
     }else if(navigator.geolocation){
