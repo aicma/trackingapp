@@ -125,32 +125,6 @@ angular.module('user.services', [])
     console.log('Error (' + fileName + '): ' + msg);
   };
 
-  function writeFile(fileName, data){
-    return new Promise(function(resolve, reject)
-    {
-      window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory, function (directoryEntry) {
-        directoryEntry.getFile(fileName, {create: true}, function (fileEntry) {
-          fileEntry.createWriter(function (fileWriter) {
-            //CALLBACKS
-            fileWriter.onwriteend = function (e) {
-
-              console.log('Write of file "' + fileName + '" completed.');
-              resolve();
-            };
-            fileWriter.onerror = function (e) {
-              console.log('Write failed: ' + e.toString());
-              reject();
-            };
-
-            //ACTUAL MAGIC HAPPENING
-            var blob = new Blob(data, {type: 'text/plain'});
-            fileWriter.write(blob);
-          }, errorHandler.bind(null, fileName));
-        }, errorHandler.bind(null, fileName));
-      }, errorHandler.bind(null, fileName));
-    })
-  }
-
   return {
     /**
      * Accepts a filename and data Array with trackpoints. Writes out a header and an trkpt for every array element.
@@ -221,12 +195,34 @@ angular.module('user.services', [])
       })
     },
     write: function(fileName, data) {
-      writeFile(fileName, data);
+      return new Promise(function(resolve, reject)
+      {
+        window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory, function (directoryEntry) {
+          directoryEntry.getFile(fileName, {create: true}, function (fileEntry) {
+            fileEntry.createWriter(function (fileWriter) {
+              //CALLBACKS
+              fileWriter.onwriteend = function (e) {
+
+                console.log('Write of file "' + fileName + '" completed.');
+                resolve();
+              };
+              fileWriter.onerror = function (e) {
+                console.log('Write failed: ' + e.toString());
+                reject();
+              };
+
+              //ACTUAL MAGIC HAPPENING
+              var blob = new Blob(data, {type: 'text/plain'});
+              fileWriter.write(blob);
+            }, errorHandler.bind(null, fileName));
+          }, errorHandler.bind(null, fileName));
+        }, errorHandler.bind(null, fileName));
+      })
     }
   }
 })
 
-.factory('Tracker', function($http, $cordovaGeolocation, Cameras, PopupService, Numbers, FileHandler) {
+.factory('Tracker', function($http, $cordovaGeolocation, Cameras, PopupService, Numbers) {
   var watch = null;
   var trackArray = [];
   var camLog = [];
